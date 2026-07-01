@@ -8,10 +8,14 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
 
+# Page Configuration
 st.set_page_config(page_title="Loan Approval Prediction System", layout="wide")
-st.title("🏦 Loan Approval Prediction System")
-st.write("Analyze applicant attributes and predict loan approval status.")
 
+# UI Title Header
+st.title("🏦 Loan Approval Prediction System")
+st.write("An end-to-end predictive framework to assess applicant risk metrics and determine loan eligibility status.")
+
+# --- 1. Robust Dataset Generation & Preprocessing ---
 @st.cache_data
 def load_and_preprocess_data():
     np.random.seed(42)
@@ -30,6 +34,8 @@ def load_and_preprocess_data():
     }
     
     df = pd.DataFrame(data)
+    
+    # Internal deterministic logic mapping to guide machine learning behavior
     df['Loan_Status'] = np.where(
         (df['Credit_History'] == 1.0) & (df['Annual_Income'] * 0.5 > df['Loan_Amount'] * 0.1),
         'Approved', 'Rejected'
@@ -48,73 +54,93 @@ def load_and_preprocess_data():
 
 df, df_encoded, label_encoders = load_and_preprocess_data()
 
-menu = st.sidebar.selectbox("Navigate Project Sections", ["Dataset Overview", "Exploratory Data Analysis", "Model Training & Evaluation", "Loan Prediction Interface"])
+# --- Sidebar Controls ---
+st.sidebar.header("Navigation Control Panel")
+menu = st.sidebar.selectbox("Jump to Section", ["Dataset Summary", "Exploratory Plots", "Model Insights", "Interactive Prediction Engine"])
 
-if menu == "Dataset Overview":
-    st.header("📋 Dataset Management & Preprocessing")
-    st.write("### Raw Dataset Sample")
-    st.dataframe(df.head(10))
+# --- SECTION 1: Dataset Summary ---
+if menu == "Dataset Summary":
+    st.header("📋 Baseline Data Audit & Metrics")
     
-    st.write("### Dataset Information")
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total Rows", df.shape[0])
-    col2.metric("Total Columns", df.shape[1])
-    col3.metric("Missing Values", df.isnull().sum().sum())
+    col1.metric("Total Records Ingested", df.shape[0])
+    col2.metric("Total Observed Dimensions", df.shape[1])
+    col3.metric("Missing Attributes Managed", df.isnull().sum().sum())
+    
+    st.write("### Data Samples (First 10 Records)")
+    st.dataframe(df.head(10), use_container_width=True)
+    
+    st.write("### Continuous Metrics Summary")
+    st.dataframe(df.describe().fillna('-'), use_container_width=True)
 
-elif menu == "Exploratory Data Analysis":
-    st.header("📊 Exploratory Data Analysis (EDA)")
+# --- SECTION 2: Exploratory Plots ---
+elif menu == "Exploratory Plots":
+    st.header("📊 Automated Data Visualization Profiles")
     col1, col2 = st.columns(2)
     
     with col1:
-        st.write("### Income Distribution")
-        fig, ax = plt.subplots()
-        sns.histplot(df['Annual_Income'], kde=True, color='skyblue', ax=ax)
+        st.write("### Continuous Features: Annual Income Spread")
+        fig, ax = plt.subplots(figsize=(6, 4))
+        sns.histplot(df['Annual_Income'], kde=True, color='#2E7D32', ax=ax)
         st.pyplot(fig)
         
     with col2:
-        st.write("### Approval Rate Comparison")
-        fig, ax = plt.subplots()
-        sns.countplot(x='Loan_Status', data=df, palette='Set2', ax=ax)
+        st.write("### Target Distribution: Application Status Split")
+        fig, ax = plt.subplots(figsize=(6, 4))
+        sns.countplot(x='Loan_Status', data=df, palette='Greens_r', ax=ax)
         st.pyplot(fig)
 
-elif menu == "Model Training & Evaluation":
-    st.header("⚙️ Model Training & Performance Metrics")
+    st.write("### Categorical Interactions: Credit Standing vs Target Output")
+    fig, ax = plt.subplots(figsize=(8, 3.5))
+    sns.countplot(x='Credit_History', hue='Loan_Status', data=df, palette='YlGnBu', ax=ax)
+    st.pyplot(fig)
+
+# --- SECTION 3: Model Insights ---
+elif menu == "Model Insights":
+    st.header("⚙️ Predictive Diagnostics & Evaluation")
+    
     X = df_encoded.drop(columns=['Applicant_ID', 'Loan_Status'])
     y = df_encoded['Loan_Status'].map({'Approved': 1, 'Rejected': 0})
-    
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
     model = RandomForestClassifier(random_state=42)
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     
-    acc = accuracy_score(y_test, y_pred)
-    st.metric("Model Prediction Accuracy", f"{acc * 100:.2f}%")
+    accuracy = accuracy_score(y_test, y_pred)
+    st.metric("Global Accuracy Baseline", f"{accuracy * 100:.2f}%")
     
-    st.write("### Classification Report")
-    report = classification_report(y_test, y_pred, output_dict=True)
-    st.json(report)
+    st.write("### Performance Report Breakdown")
+    st.json(classification_report(y_test, y_pred, output_dict=True))
+    
+    st.write("### Relative Feature Importances")
+    feature_importance = pd.Series(model.feature_importances_, index=X.columns).sort_values(ascending=False)
+    fig, ax = plt.subplots(figsize=(8, 4))
+    sns.barplot(x=feature_importance.values, y=feature_importance.index, palette='viridis', ax=ax)
+    st.pyplot(fig)
 
-elif menu == "Loan Prediction Interface":
-    st.header("🔮 Real-Time Loan Eligibility Checker")
+# --- SECTION 4: Interactive Prediction Engine ---
+elif menu == "Interactive Prediction Engine":
+    st.header("🔮 System Evaluation Inference Portal")
+    st.write("Modify real-time input fields below to test operational classification outcomes.")
     
-    with st.form("prediction_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            gender = st.selectbox("Gender", ["Male", "Female"])
-            married = st.selectbox("Marital Status", ["Yes", "No"])
-            education = st.selectbox("Education Level", ["Graduate", "Not Graduate"])
-            employment = st.selectbox("Employment Status", ["Employed", "Self-Employed"])
-        with col2:
-            income = st.number_input("Annual Income ($)", min_value=10000, max_value=500000, value=50000)
-            loan_amt = st.number_input("Requested Loan Amount ($)", min_value=5000, max_value=300000, value=25000)
-            credit = st.selectbox("Credit History Score", [1.0, 0.0])
-            property_area = st.selectbox("Property Area Type", ["Urban", "Semi-Urban", "Rural"])
+    with st.form("inference_input_form"):
+        c1, c2 = st.columns(2)
+        with c1:
+            gender = st.selectbox("Applicant Gender Type", ["Male", "Female"])
+            married = st.selectbox("Marital History Status", ["Yes", "No"])
+            education = st.selectbox("Academic Attainment Level", ["Graduate", "Not Graduate"])
+            employment = st.selectbox("Current Professional Status", ["Employed", "Self-Employed"])
+        with c2:
+            income = st.number_input("Calculated Annual Income ($)", min_value=10000, max_value=500000, value=65000)
+            loan_amt = st.number_input("Requested Principal Loan Value ($)", min_value=5000, max_value=300000, value=35000)
+            credit = st.selectbox("Valid Historical Credit Score Status", [1.0, 0.0])
+            property_area = st.selectbox("Zoning Demographics Designation", ["Urban", "Semi-Urban", "Rural"])
             
-        submit = st.form_submit_button("Predict Application Status")
+        submit_btn = st.form_submit_button("Query Machine Learning Model")
         
-    if submit:
-        input_data = pd.DataFrame([{
+    if submit_btn:
+        input_payload = pd.DataFrame([{
             'Gender': label_encoders['Gender'].transform([gender])[0],
             'Married': label_encoders['Married'].transform([married])[0],
             'Education': label_encoders['Education'].transform([education])[0],
@@ -125,14 +151,15 @@ elif menu == "Loan Prediction Interface":
             'Property_Area': label_encoders['Property_Area'].transform([property_area])[0]
         }])
         
-        X = df_encoded.drop(columns=['Applicant_ID', 'Loan_Status'])
-        y = df_encoded['Loan_Status'].map({'Approved': 1, 'Rejected': 0})
-        model = RandomForestClassifier(random_state=42)
-        model.fit(X, y)
+        X_all = df_encoded.drop(columns=['Applicant_ID', 'Loan_Status'])
+        y_all = df_encoded['Loan_Status'].map({'Approved': 1, 'Rejected': 0})
         
-        prediction = model.predict(input_data)[0]
+        final_model = RandomForestClassifier(random_state=42)
+        final_model.fit(X_all, y_all)
+        
+        outcome = final_model.predict(input_payload)[0]
         st.write("---")
-        if prediction == 1:
-            st.success("🎉 **Application Approved!**")
+        if outcome == 1:
+            st.success("🎉 **Application Evaluation Result: APPROVED** — The candidate parameters fall securely within automated credit risk boundaries.")
         else:
-            st.error("❌ **Application Rejected.**")
+            st.error("❌ **Application Evaluation Result: REJECTED** — Parameters display elevated non-compliance markers relative to data history distributions.")
